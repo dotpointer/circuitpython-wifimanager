@@ -66,6 +66,24 @@ design. It is maybe obvious, but to keep the device responding to ping for
 instance you need to have a simple loop preferably with a sleep timeout
 running.
 
+## How to regain write permission
+
+If you loose write permission to the file system of the device then you can
+do this to remove the file that locks it through a serial connection:
+
+1. Make a backup of your files on the file system to a folder on your computer.
+
+2. Open a serial connection. For example in Debian Linux you can use screen:
+apt install screen, then ls /dev/ttyACM* to find the current serial port number -
+note the number it is ending in, usually 0, then screen /dev/ttyACM0 - replace
+0 with your number, then press Enter.
+
+2. Press Ctrl+C, then Enter to get the REPL prompt.
+
+3. Type import os, then os.listdir() to list files or os.unlink('boot.py') to
+remove boot.py or another file that is doing the locking, then hard reset the
+device by removing USB or power or connecting the EN pin to GND if available.
+
 ## Notable behaviour differences from the MicroPython version
 
 It does not automatically connect to the first open network it finds,
