@@ -10,11 +10,16 @@ version authors section.
 
 ## Description
 
-WiFi manager for ESP8266, ESP12 and ESP32 for CircuitPython.
+WiFi manager for CircuitPython 8+.
 
 ## Compatibility
 
-Tested on CircuitPython 8.0.2.
+Tested on WeMos/LOLIN S2 Mini/Adafruit Feather ESP32-S2 with CircuitPython 8.0.2.
+
+Should be compatible with other CircuitPython 8+ devices too, please try it
+out to find out.
+
+The device must have CircuitPython WiFi hardware support.
 
 ## Main Features
 
