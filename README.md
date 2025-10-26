@@ -10,11 +10,11 @@ version authors section.
 
 ## Description
 
-WiFi manager for CircuitPython 8+.
+WiFi manager for CircuitPython 8+/9+.
 
 ## Compatibility
 
-Tested on WeMos/LOLIN S2 Mini/Adafruit Feather ESP32-S2 with CircuitPython 8.0.2.
+Tested on WeMos/LOLIN S2 Mini/Adafruit Feather ESP32-S2 with CircuitPython 8.0.2 and 9.2.9.
 
 Should be compatible with other CircuitPython 8+ devices too, please try it
 out to find out.
@@ -24,18 +24,21 @@ The device must have CircuitPython WiFi hardware support.
 ## Main Features
 
 - Brings up an access point with a web based connection manager
-  located at http://192.168.4.1/ if no network as been configured
+  located at http://192.168.4.1/ if no network has been configured
 - Saves WiFi SSID:s and passwords in "wifi.dat" in CSV format
 - Connects automatically to the first available matching network
 - Easy to apply
 - Reset settings GPIO button support to let the user reset WiFi settings
 - USB write protected GPIO button support to try it out while connected to the computer
+- Uses XMLHttpRequest and JSON to communicate with the browser
+- HTML template file that can be redesigned to your liking
 
 ## Usage
 
-Install CircuitPython 8+ on your device.
+Install CircuitPython 8+/9+ on your device.
 
-Upload boot.py, code.py and wifimgr.py to the file system of the device.
+Upload boot.py, code.py, wifimgr.py and wifimgr-template.html to
+the file system of the device.
 
 Write your code below the connection prodedure in code.py or import it from
 code.py.
