@@ -3,6 +3,7 @@ import socketpool
 import storage
 import time
 import wifi
+import json
 
 # extract access point mac address
 mac_ap = ' '.join([hex(i) for i in wifi.radio.mac_address_ap])
@@ -128,17 +129,20 @@ def handle_configure(client, request):
     global ap_enabled
     print('Handle configure start')
     print("Request:", request.strip())
-    match = re.search("ssid=([^&]*)&password=(.*)", request)
 
-    if match is None:
-        send_response(client, "Parameters not found", status_code=400)
+    data = strip_headers(request)
+    data = json.loads(data)
+
+    if "ssid" not in data or "password" not in data or len(str(data["ssid"])) < 1:
+        send_response(client, json.dumps({'status': False, 'data': "Parameters not found" }), status_code=400)
         print('Handle configure aborted, missing parameters')
         return False
-    ssid = match.group(1).replace("%3F", "?").replace("%21", "!")
-    password = match.group(2).replace("%3F", "?").replace("%21", "!")
+
+    ssid = data["ssid"]
+    password = data["password"]
 
     if len(ssid) == 0:
-        send_response(client, "SSID must be provided", status_code=400)
+        send_response(client, json.dumps({'status': False, 'data': "SSID must be provided" }), status_code=400)
         print('Handling configure aborted, no SSID provided')
         return False
 
@@ -148,25 +152,15 @@ def handle_configure(client, request):
         except OSError:
             profiles = {}
         profiles[ssid] = password
-        write_result = write_profiles(profiles)
-        response = get_html_head() + """\
-  <p>
-        """
-        response = response + """\
-   Successfully connected to the WiFi network "%(ssid)s".
-        """ % dict(ssid=ssid)
+        response = "Successfully connected to the WiFi network " + ssid
 
+        write_result = write_profiles(profiles)
+        # write_result = False # DEBUG
         if write_result is False:
-            print('Failed to write changes')
-            response = response + """\
-    <br><br>
-    Failed to save changes.
-            """
-        response = response + """\
-  </p>
-        """
-        response = response + get_html_footer()
-        send_response(client, response)
+            print('Failed to save changes')
+            response = response + " Failed to save changes."
+
+        send_response(client, json.dumps({'status': True, 'data': response }))
         time.sleep(30)
         if write_result:
             if ap_enabled:
@@ -181,140 +175,55 @@ def handle_configure(client, request):
         #   print('Handle configure end, connected and disconnected')
         # return write_result
     else:
-
-        response = get_html_head()
-        response = response + """\
-    <h1>Could not connect to the WiFi network "%(ssid)s".</h1>
-     <form>
-      <div>
-       <input type="button" value="Go back" onclick="history.back()">
-     </div>
-    </form>
-        """ % dict(ssid=ssid)
-        response = response + get_html_footer()
-        send_response(client, response)
+        send_response(client, json.dumps({'status': False, 'data': "Could not connect to the WiFi network " + ssid }), status_code=500)
         print('Handle configure ended, no connection')
         return False
 
 def handle_not_found(client, url):
     print('Handle not found start')
-    send_response(client, "Path not found: {}".format(url), status_code=404)
+    send_response(client, json.dumps({'status': False, 'data': "Path not found: {}".format(url) }) , status_code=404)
     print('Handle not found end')
 
-def get_html_footer():
-    return """\
- <p class="footer">
-  <a href="https://github.com/dotpointer/circuitpython_wifimanager"
-   target="_blank" rel="noopener">dotpointer / circuitpython_wifimanager</a>
-  <br>
-  Based on <a href="https://github.com/tayfunulu/WiFiManager"
-  target="_blank" rel="noopener">tayfunulu / WiFiManager</a> and
-  <a href="https://github.com/cpopp/MicroPythonSamples"
-   target="_blank" rel="noopener">cpopp / MicroPythonSamples</a>
-  </p>
-</body>
-</html>
-    """
+def handle_root(client):
+    print('Handle / start')
+    send_header(client)
+    try:
+        with open("/wifimgr-template.html", "r") as fp:
+            while True:
+                line = fp.readline()
+                if not line:
+                    break
+                sendall(client, line)
 
-def get_html_head():
+    except OSError as e:
+        print("Exception", str(e))
+
+    client.close()
+    print('Handle / end')
+
+def handle_data(client):
     global AP_SSID
-    return """\
-<!DOCTYPE html>
-<html>
-<head>
-<title>""" + AP_SSID + """ - Wi-Fi client setup</title>
-<style>
-  a {
-  color:#fff;
-  }
-  a:hover {
-  color:#ddd;
-  }
-  h1 {
-  font-size: 28px;
-  }
-  body {
-  background:#1e1e1e;
-  border-bottom:10px solid #e71c8c;
-  color:#fff;
-  font-family:Arial, sans-serif;
-  font-size:24px;
-  margin:0;
-  padding:5px;
-  text-align:center;
-  }
-  button {
-  background:transparent;
-  border-radius:30px;
-  border:3px solid #fff;
-  color:#fff;
-  cursor:pointer;
-  font-weight:bold;
-  padding:5px 20px;
-  }
-  button:hover {
-  color:#000;
-  background:#fff
-  }
-  button, label {
-  cursor:pointer;
-  font-size: 24px;
-  }
-  html {
-  background-repeat:no-repeat;
-  background:#333;
-  height:100%;
-  margin:0;
-  }
-  input.text {
-  background:transparent;
-  border-radius:30px;
-  border:3px solid #fff;
-  color:#fff;
-  font-size: 24px;
-  font-weight:bold;
-  padding:3px 10px;
-  }
-  table {
-  margin-left:auto;
-  margin-right:auto;
-  }
-  .footer {
-  font-size:18px;
-  }
-  .network {
-  background:transparent;
-  border-radius:30px;
-  border:3px solid #fff;
-  color:#fff;
-  cursor:pointer;
-  display:inline-block;
-  font-weight:bold;
-  margin: 5px auto;
-  }
-  .network input[type="radio"] {
-  border:none;
-  cursor:pointer;
-  height: 17px;
-  outline:3px;
-  }
-  .network label {
-  display:inline-block;
-  padding:5px 20px;
-  }
-</style>
-</head>
-<body>
-<h1>""" + AP_SSID + """ - Wi-Fi client setup</h1>
-"""
+    print('Handle list SSID:s')
+    wifi.radio.enabled = True
+
+    networks = []
+    for n in wifi.radio.start_scanning_networks():
+        print("Found \"%s\", #%s" % (n.ssid, n.channel))
+        networks.append({'ssid': n.ssid, 'channel': n.channel})
+
+    wifi.radio.stop_scanning_networks()
+
+    send_header(client, content_type='application/json')
+    sendall(client, json.dumps({'ap_ssid': AP_SSID, 'readonly': storage.getmount('/').readonly, 'file_network_profiles': FILE_NETWORK_PROFILES, 'networks': networks}))
 
 def sendall(client, data):
     data = data.replace('  ', ' ')
+    # print('Sending: ' + str(len(data)) + ' b')
     while len(data):
         # split data in chunks to avoid EAGAIN exception
         part = data[0:512]
         data = data[len(part):len(data)]
-        print('Sending: ' + str(len(part)) + 'b')
+        # print('Sending: ' + str(len(part)) + 'b')
         # EAGAIN too much data exception catcher
         while True:
             try:
@@ -324,50 +233,6 @@ def sendall(client, data):
                 time.sleep(0.25)
                 pass
             break
-
-def handle_root(client):
-    print('Handle / start')
-    wifi.radio.enabled = True
-
-    networks = []
-    for n in wifi.radio.start_scanning_networks():
-        print("Found \"%s\", #%s" % (n.ssid, n.channel))
-        networks.append([n.ssid, n.channel])
-    wifi.radio.stop_scanning_networks()
-    send_header(client)
-    sendall(client, get_html_head())
-    sendall(client, """\
-  <form action="configure" method="post">
-    """)
-    while len(networks):
-        network = networks.pop(0)
-        sendall(client, """\
-   <div class="network">
-    <input type="radio" id="ssid_{0}" name="ssid" value="{0}" />
-    <label for="ssid_{0}">{0} (#{1})</label>
-   </div>
-   <br>
-        """.format(network[0], network[1]))
-    sendall(client, """\
-   <div><label>Password:</label> <input class="text" name="password" type="password" ></div>
-   <p><button>Connect</button></p>
-  </form>
-    """)
-
-    if storage.getmount('/').readonly:
-        sendall(client, """\
-  <p>Warning, the file system is in read-only mode, settings will not be saved.</p>
-        """)
-    else:
-        sendall(client, """\
-  <p>
-   The SSID and password will be saved in the
-   "%(filename)s" on the device.
-  </p>
-        """ % dict(filename=FILE_NETWORK_PROFILES))
-    sendall(client, get_html_footer())
-    client.close()
-    print('Handle / end')
 
 def read_profiles():
     profiles = {}
@@ -381,16 +246,17 @@ def read_profiles():
         profiles = {}
     return profiles
 
-def send_header(client, status_code=200, content_length=None):
+def send_header(client, status_code=200, content_type="text/html; charset=UTF-8", content_length=None):
     sendall(client, "HTTP/1.0 {} OK\r\n".format(status_code))
-    sendall(client, "Content-Type: text/html\r\n")
+    sendall(client, "Content-Type: " + content_type + "\r\n")
     if content_length is not None:
         sendall(client, "Content-Length: {}\r\n".format(content_length))
     sendall(client, "\r\n")
 
 def send_response(client, payload, status_code=200):
     content_length = len(payload)
-    send_header(client, status_code, content_length)
+    content_type = "application/json"
+    send_header(client, status_code, content_type, content_length)
     if content_length > 0:
         sendall(client, payload)
     client.close()
@@ -415,7 +281,11 @@ def start_ap(port=80):
         ap_enabled = True
 
     server_socket = socketpool.SocketPool(wifi.radio).socket()
-    server_socket.bind(addr)
+    try:
+        server_socket.bind(addr)
+    except OSError as e:
+        print("Exception", str(e))
+        return;
     server_socket.listen(1)
     if storage.getmount('/').readonly:
         print('File system is read only')
@@ -484,11 +354,18 @@ def start_ap(port=80):
                 handle_root(client)
             elif url == "/configure":
                 handle_configure(client, request)
+            elif url == "/data":
+                handle_data(client)
             else:
                 handle_not_found(client, url)
 
         finally:
             client.close()
+
+def strip_headers(s):
+    if s.find("\r\n\r\n") != -1:
+        s = s[s.find("\r\n\r\n") + 4:]
+    return s
 
 def write_profiles(profiles):
     print('Write profiles start')

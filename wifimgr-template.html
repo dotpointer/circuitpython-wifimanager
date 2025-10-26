@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <title>Wi-Fi client setup</title>
+    <style>
+      a {
+        color:#fff;
+      }
+      a:hover {
+        color:#ddd;
+      }
+      h1 {
+        font-size: 28px;
+      }
+      body {
+        background:#1e1e1e;
+        border-bottom:10px solid #e71c8c;
+        color:#fff;
+        font-family:Arial, sans-serif;
+        font-size:24px;
+        margin:0;
+        padding:5px;
+        text-align:center;
+      }
+      button {
+        background:transparent;
+        border-radius:30px;
+        border:3px solid #fff;
+        color:#fff;
+        cursor:pointer;
+        font-weight:bold;
+        padding:5px 20px;
+      }
+      button:hover {
+        color:#000;
+        background:#fff
+      }
+      button, label {
+        cursor:pointer;
+        font-size: 24px;
+      }
+      html {
+        background-repeat:no-repeat;
+        background:#333;
+        height:100%;
+        margin:0;
+      }
+      input.text {
+        background:transparent;
+        border-radius:30px;
+        border:3px solid #fff;
+        color:#fff;
+        font-size: 24px;
+        font-weight:bold;
+        padding:3px 10px;
+      }
+      table {
+        margin-left:auto;
+        margin-right:auto;
+      }
+      .footer {
+        font-size:18px;
+      }
+      .network {
+        background:transparent;
+        border-radius:30px;
+        border:3px solid #fff;
+        color:#fff;
+        cursor:pointer;
+        display:inline-block;
+        font-weight:bold;
+        margin: 5px auto;
+      }
+      .network input[type="radio"] {
+        border:none;
+        cursor:pointer;
+        height: 17px;
+        outline:3px;
+      }
+      .network label {
+        display:inline-block;
+        padding:5px 20px;
+      }
+      #configure {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Wi-Fi client setup</h1>
+    <p id="message">Loading...</p>
+    <form action="configure" method="post" accept-charset="utf-8" id="configure">
+      <div id="networks">
+          Loading networks...
+      </div>
+      <div><label>Password:</label> <input class="text" id="password" name="password" type="password" maxlength="64" ></div>
+      <p>
+        <button id="refresh">Refresh</button>
+        <button id="connect">Connect</button>
+      </p>
+      <p id="subnote"></p>
+    </form>
+    <p class="footer">
+      <a href="https://github.com/dotpointer/circuitpython_wifimanager"
+      target="_blank" rel="noopener">dotpointer / circuitpython_wifimanager</a>
+      <br>
+      Based on <a href="https://github.com/tayfunulu/WiFiManager"
+      target="_blank" rel="noopener">tayfunulu / WiFiManager</a> and
+      <a href="https://github.com/cpopp/MicroPythonSamples"
+      target="_blank" rel="noopener">cpopp / MicroPythonSamples</a>
+    </p>
+    <script>
+      window.getData = function() {
+        document.getElementById('message').style.display = "block";
+        document.getElementById('configure').style.display = "none";
+        document.getElementById('message').innerText = "Scanning for networks...";
+        let req = new XMLHttpRequest();
+        req.responseType = 'json';
+        req.open('GET', 'data', true);
+        req.onload  = function() {
+          let json = req.response;
+          let h1 = document.getElementsByTagName('h1')[0],
+              title = document.getElementsByTagName('title')[0],
+              divnetworks = document.getElementById('networks'),
+              subnote = document.getElementById('subnote');
+
+          h1.innerText = json.ap_ssid + ' - Wi-Fi client setup';
+          title.innerText = json.ap_ssid + ' - Wi-Fi client setup';
+          subnote.innerText = "Network credentials will be stored in the " + json.file_network_profiles + " file on the device.";
+          divnetworks.innerText = '';
+          for (const network of json.networks) {
+            const divnetwork = document.createElement("div");
+            divnetwork.classList.add("network");
+            const inputssid = document.createElement("input");
+            inputssid.setAttribute("type", "radio");
+            inputssid.setAttribute("name", "ssid");
+            inputssid.setAttribute("id", "channel_" + network.channel + "_ssid_" + network.ssid);
+            inputssid.setAttribute("value", network.ssid);
+
+            const labelssid = document.createElement("label");
+            labelssid.setAttribute("for", "channel_" + network.channel + "_ssid_" + network.ssid);
+            labelssid.innerText = network.ssid + " (" + network.channel + ")"
+
+            divnetwork.appendChild(inputssid);
+            divnetwork.appendChild(labelssid);
+
+            divnetworks.appendChild(divnetwork);
+            divnetworks.appendChild(document.createElement("br"));
+          }
+          document.getElementById('message').style.display = "none";
+          document.getElementById('configure').style.display = "block";
+        };
+        req.send(null);
+      }
+
+      document.getElementById('connect').onclick = function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        let req = new XMLHttpRequest(),
+            password = document.getElementById('password').value,
+            ssid = document.querySelector('input[name="ssid"]:checked').value;
+
+        if (ssid == null) return false;
+
+        document.getElementById('configure').style.display = "none";
+
+        document.getElementById('message').innerText = "Connecting to " + ssid + "...";
+        document.getElementById('message').style.display = "block";
+        req.responseType = 'json';
+        req.open("POST", "configure", true);
+        req.setRequestHeader("Content-Type", "application/json");
+
+        req.onload  = function() {
+          console.log('req', req);
+          let json = req.response;
+          document.getElementById('message').innerText = json.data;
+          if (!json.status) {
+            const back = document.createElement('button');
+            back.innerText = "Go back";
+            back.onclick = function() {
+              e.stopPropagation();
+              e.preventDefault();
+              document.getElementById('message').style.display = "none";
+              document.getElementById('configure').style.display = "block";
+              return false;
+            };
+            document.getElementById('message').appendChild(document.createElement('br'))
+            document.getElementById('message').appendChild(back);
+          }
+        };
+
+        const data = { "ssid": ssid, "password": password };
+        req.send(JSON.stringify(data));
+
+        return false;
+      };
+
+      document.getElementById('refresh').onclick = function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        window.getData();
+        return false;
+      }
+
+      window.getData();
+    </script>
+  </body>
+</html>
+
